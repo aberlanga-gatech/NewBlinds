@@ -1,6 +1,5 @@
 #include <Arduino.h>
 #include <HomeSpan.h>
-#include <TMCStepper.h>
 #include "BlindsConfig.h"
 #include "HomekitConfig.h"
 #include "TMCDriver.h"
@@ -15,14 +14,9 @@
 
 #define R_SENSE 0.10f // Set the sense resistor value (depends on your TMC2209 setup)
 
-// Motor Parameters
-#define STEPS_PER_REV 200 // Number of steps per revolution
-#define MOTOR_CURRENT 600 // Motor current in milliamps
-#define MICROSTEPS 8      // Microsteps per step
-#define TOTAL_STEPS (STEPS_PER_REV * TOTAL_ROTATIONS)
-
-// Create TMC2209Stepper Instance
-TMC2209Stepper driver(&SERIAL_PORT, R_SENSE, DRIVER_ADDRESS);
+////////////////////////////////////
+// Create Stepper_TMC Instance
+Stepper_TMC stepperDriver(SERIAL_PORT, R_SENSE, DRIVER_ADDRESS, STEP_PIN, DIR_PIN, EN_PIN);
 
 ////////////////////////////////////
 // Define WindowCovering Accessory Class
@@ -33,32 +27,21 @@ struct DEV_WindowShade : Service::WindowCovering
   Characteristic::TargetPosition targetPos{0, true};   // 0 = fully closed, 100 = fully open
   Characteristic::PositionState positionState{0};      // 0 = Stopped, 1 = Increasing, 2 = Decreasing
 
-  TMC2209Stepper *shadeMotor; // Pointer to the TMC2209 stepper motor
-  int currentSteps;           // Tracks the current step count
-  int targetSteps;            // Target number of steps to reach the desired position
+  Stepper_TMC *shadeMotor; // Pointer to the Stepper_TMC motor
+  int currentSteps;        // Tracks the current step count
+  int targetSteps;         // Target number of steps to reach the desired position
   int dir;
   int delta;
   int stepsPerPercent = TOTAL_STEPS / 100;
   bool moving = false;
 
-  DEV_WindowShade(TMC2209Stepper *shadeMotor) : Service::WindowCovering()
+  DEV_WindowShade(Stepper_TMC *shadeMotor) : Service::WindowCovering()
   {
     this->shadeMotor = shadeMotor;
     this->currentSteps = 0;
 
     Serial.print("Initializing Blind Position (Debugging): ");
     Serial.println(currentPos.getVal());
-
-    // configure pins
-    pinMode(EN_PIN, OUTPUT);
-    pinMode(STEP_PIN, OUTPUT);
-    pinMode(DIR_PIN, OUTPUT);
-    digitalWrite(EN_PIN, HIGH); // Disable driver by default
-
-    // Set the motor current
-    shadeMotor->begin();
-    shadeMotor->rms_current(MOTOR_CURRENT);
-    shadeMotor->microsteps(MICROSTEPS);
   }
 
   boolean update() override
@@ -71,19 +54,17 @@ struct DEV_WindowShade : Service::WindowCovering
       if (delta > 0)
       {
         dir = 1; // Move Up
-        digitalWrite(DIR_PIN, HIGH);
         currentSteps += delta;
         positionState.setVal(1); // Moving Up
       }
       else if (delta < 0)
       {
-        dir = 0; // Move Down
-        digitalWrite(DIR_PIN, LOW);
+        dir = 0;                 // Move Down
         currentSteps += (delta); // Decrease step count
         positionState.setVal(2); // Moving Down
       }
 
-      int moveSteps = delta * stepsPerPercent;
+      int moveSteps = abs(delta);
 
       Serial.print("Moving to Position: ");
       Serial.println(targetPos.getNewVal());
@@ -99,23 +80,20 @@ struct DEV_WindowShade : Service::WindowCovering
   // Handle Stepper movement
   void moveStepper(int steps, int dir)
   {
-    int stepsDelay = dir ? STEPS_DELAY_FAST : STEPS_DELAY_SLOW;
-    digitalWrite(EN_PIN, LOW); // Enable driver
     moving = true;
+    shadeMotor->onEnable();
 
     for (int i = 0; i < steps; i++)
     {
-      digitalWrite(STEP_PIN, HIGH);
-      delayMicroseconds(stepsDelay);
-      digitalWrite(STEP_PIN, LOW);
-      delayMicroseconds(stepsDelay);
+      shadeMotor->onStep(dir);
+      delayMicroseconds(100); // Delay between steps
 
       // Update current position after each step
       currentPos.setVal(constrain(currentPos.getVal() + ((dir == 1 ? 1 : -1) * 1.0 / TOTAL_STEPS * 100), 0, 100));
     }
 
     moving = false;
-    digitalWrite(EN_PIN, HIGH); // Disable driver
+    shadeMotor->onDisable();
     LOG1("Motor Stopped at Position=%d\n", currentPos.getVal());
   }
 
@@ -142,9 +120,9 @@ void setup()
 
   homeSpan.begin(Category::WindowCoverings, "Smart Blinds");
 
-  // Create a new accessory with the Window Covering service using TMC2209Stepper
+  // Create a new accessory with the Window Covering service using Stepper_TMC
   configureHomeKit();
-  new DEV_WindowShade(&driver);
+  new DEV_WindowShade(&stepperDriver);
 }
 
 ////////////////////////////////////
