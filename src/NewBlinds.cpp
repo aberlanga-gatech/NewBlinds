@@ -32,7 +32,7 @@ struct DEV_WindowShade : Service::WindowCovering
   Characteristic::TargetPosition targetPos{0, true};   // 0 = fully closed, 100 = fully open
   Characteristic::PositionState positionState{0};      // 0 = Stopped, 1 = Increasing, 2 = Decreasing
 
-  TMC2209Stepper *shadeMotor; // Pointer to the TMC2209 stepper motor
+  TMC2209Stepper &shadeMotor; // Static allocation to the TMC2209 stepper motor
   int currentSteps;           // Tracks the current step count
   int targetSteps;            // Target number of steps to reach the desired position
   int dir;
@@ -40,9 +40,8 @@ struct DEV_WindowShade : Service::WindowCovering
   int stepsPerPercent = TOTAL_STEPS / 100;
   bool moving = false;
 
-  DEV_WindowShade(TMC2209Stepper *shadeMotor) : Service::WindowCovering()
+  DEV_WindowShade(TMC2209Stepper &shadeMotor) : Service::WindowCovering(), shadeMotor(shadeMotor)
   {
-    this->shadeMotor = shadeMotor;
     this->currentSteps = 0;
 
     Serial.print("Initializing Blind Position (Debugging): ");
@@ -55,9 +54,10 @@ struct DEV_WindowShade : Service::WindowCovering
     digitalWrite(EN_PIN, HIGH); // Disable driver by default
 
     // Set the motor current
-    shadeMotor->begin();
-    shadeMotor->rms_current(MOTOR_CURRENT);
-    shadeMotor->microsteps(MICROSTEPS);
+    shadeMotor.begin();
+    shadeMotor.toff(4);
+    shadeMotor.rms_current(MOTOR_CURRENT);
+    shadeMotor.microsteps(MICROSTEPS);
   }
 
   boolean update() override
@@ -91,6 +91,8 @@ struct DEV_WindowShade : Service::WindowCovering
         moveStepper(moveSteps, dir);
       }
       positionState.setVal(0); // Stopped after movement
+      Serial.print("Free Heap Memory 94: ");
+      Serial.println(ESP.getFreeHeap());
     }
     return true;
   }
@@ -101,6 +103,8 @@ struct DEV_WindowShade : Service::WindowCovering
     int stepsDelay = dir ? STEPS_DELAY_FAST : STEPS_DELAY_SLOW;
     digitalWrite(EN_PIN, LOW); // Enable driver
     moving = true;
+    Serial.print("Steps: ");
+    Serial.println(steps);
 
     for (int i = 0; i < steps; i++)
     {
@@ -111,6 +115,14 @@ struct DEV_WindowShade : Service::WindowCovering
 
       // Update current position after each step
       currentPos.setVal(constrain(currentPos.getVal() + ((dir == 1 ? 1 : -1) * 1.0 / TOTAL_STEPS * 100), 0, 100));
+      Serial.print("Free Heap: ");
+      Serial.println(ESP.getFreeHeap());
+      Serial.print("Max Allocatable Heap: ");
+      Serial.println(ESP.getMaxAllocHeap());
+
+      UBaseType_t highWaterMark = uxTaskGetStackHighWaterMark(NULL);
+      Serial.print("Stack High Water Mark: ");
+      Serial.println(highWaterMark);
     }
 
     moving = false;
@@ -126,7 +138,9 @@ struct DEV_WindowShade : Service::WindowCovering
     if (currentSteps == targetSteps && positionState.getVal() != 0)
     {
       currentPos.setVal(targetPos.getVal()); // Update current position in HomeKit
-      positionState.setVal(0);               // Stop movement
+      Serial.print("Free Heap Memory 133: ");
+      Serial.println(ESP.getFreeHeap());
+      positionState.setVal(0); // Stop movement
       LOG1("Motor Stopped at Position=%d\n", currentPos.getVal());
     }
   }
@@ -140,10 +154,11 @@ void setup()
   SERIAL_PORT.begin(115200); // Start UART communication for TMC2209
 
   homeSpan.begin(Category::WindowCoverings, "Smart Blinds");
+  homeSpan.setLogLevel(1);
 
   // Create a new accessory with the Window Covering service using TMC2209Stepper
   configureHomeKit();
-  new DEV_WindowShade(&driver);
+  new DEV_WindowShade(driver);
 }
 
 ////////////////////////////////////
