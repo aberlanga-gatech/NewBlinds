@@ -46,46 +46,40 @@ struct DEV_WindowShade : Service::WindowCovering
     this->shadeMotor = shadeMotor;
     this->currentSteps = 0;
 
-    Serial.print("Initializing Blind Position: ");
+    Serial.print("Initializing Blind Position (Debugging): ");
     Serial.println(currentPos.getVal());
 
     // configure pins
     pinMode(EN_PIN, OUTPUT);
     pinMode(STEP_PIN, OUTPUT);
     pinMode(DIR_PIN, OUTPUT);
-    digitalWrite(EN_PIN, HIGH); // Disable driver initially
+    digitalWrite(EN_PIN, HIGH); // Disable driver by default
 
-    // Configure TMC2209 Parameters
-    shadeMotor->begin();                    // Initialize TMC2209 driver
-    shadeMotor->rms_current(MOTOR_CURRENT); // Set RMS current for the motor
-    shadeMotor->microsteps(MICROSTEPS);     // Set microsteps to 1/16
-    shadeMotor->en_spreadCycle(false);      // Enable StealthChop for quiet mode
-    shadeMotor->toff(5);                    // Enable driver
-
-    LOG0("TMC2209 Motor initialized for Window Shade Control.\n");
+    // Set the motor current
+    shadeMotor->begin();
+    shadeMotor->rms_current(MOTOR_CURRENT);
+    shadeMotor->microsteps(MICROSTEPS);
   }
-
-  /////////// Handle Position Updates from HomeKit
 
   boolean update() override
   {
-    if (targetPos.updated())
+    if (!moving)
     {
-      // Calculate target position in steps
       targetSteps = targetPos.getNewVal() * stepsPerPercent;
+      delta = targetSteps - currentSteps;
 
-      if (targetSteps > currentSteps)
+      if (delta > 0)
       {
-        dir = 0;
-        delta = targetSteps - currentPos.getVal();
+        dir = 1; // Move Up
+        digitalWrite(DIR_PIN, HIGH);
+        currentSteps += delta;
         positionState.setVal(1); // Moving Up
-
-        // shadeMotor->shaft(1);    // Set direction to CW for increasing position
       }
-      else if (targetSteps < currentSteps)
+      else if (delta < 0)
       {
-        dir = 1;
-        delta = currentPos.getVal() - targetSteps;
+        dir = 0; // Move Down
+        digitalWrite(DIR_PIN, LOW);
+        currentSteps += (delta); // Decrease step count
         positionState.setVal(2); // Moving Down
       }
 
@@ -117,7 +111,7 @@ struct DEV_WindowShade : Service::WindowCovering
       delayMicroseconds(stepsDelay);
 
       // Update current position after each step
-      currentPos.setVal(currentPos.getVal() + ((dir == 1 ? 1 : -1) * 1.0 / TOTAL_STEPS * 100));
+      currentPos.setVal(constrain(currentPos.getVal() + ((dir == 1 ? 1 : -1) * 1.0 / TOTAL_STEPS * 100), 0, 100));
     }
 
     moving = false;

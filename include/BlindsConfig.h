@@ -2,7 +2,7 @@
 // if you are seeing this, sorry, all sensitive info is stored locally
 
 // WiFi Config
-#define WIFI_SSID (HIDDEN_WIFI_SSID)
+#define WIFI_SSID HIDDEN_WIFI_SSID
 #define WIFI_PASSWORD HIDDEN_WIFI_PWD
 #define HOSTNAME "smart-blinds"
 
