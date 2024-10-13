@@ -70,14 +70,14 @@ struct DEV_WindowShade : Service::WindowCovering
       if (delta > 0)
       {
         dir = 1; // Move Up
-        digitalWrite(DIR_PIN, HIGH);
+        // digitalWrite(DIR_PIN, HIGH);
         currentSteps += delta;
         positionState.setVal(1); // Moving Up
       }
       else if (delta < 0)
       {
         dir = 0; // Move Down
-        digitalWrite(DIR_PIN, LOW);
+        // digitalWrite(DIR_PIN, LOW);
         currentSteps += (delta); // Decrease step count
         positionState.setVal(2); // Moving Down
       }
@@ -88,11 +88,9 @@ struct DEV_WindowShade : Service::WindowCovering
       Serial.println(targetPos.getNewVal());
       if (moveSteps != 0)
       {
-        moveStepper(moveSteps, dir);
+        moveStepper(abs(moveSteps), dir);
       }
       positionState.setVal(0); // Stopped after movement
-      Serial.print("Free Heap Memory 94: ");
-      Serial.println(ESP.getFreeHeap());
     }
     return true;
   }
@@ -105,6 +103,7 @@ struct DEV_WindowShade : Service::WindowCovering
     moving = true;
     Serial.print("Steps: ");
     Serial.println(steps);
+    shadeMotor.shaft(dir); // Set the direction
 
     for (int i = 0; i < steps; i++)
     {
@@ -114,7 +113,7 @@ struct DEV_WindowShade : Service::WindowCovering
       delayMicroseconds(stepsDelay);
 
       // Update current position after each step
-      currentPos.setVal(constrain(currentPos.getVal() + ((dir == 1 ? 1 : -1) * 1.0 / TOTAL_STEPS * 100), 0, 100));
+      currentPos.setVal((currentPos.getVal() + ((dir == 1 ? 1 : -1) * 1.0 / TOTAL_STEPS * 100), 0, 100));
       Serial.print("Free Heap: ");
       Serial.println(ESP.getFreeHeap());
       Serial.print("Max Allocatable Heap: ");
@@ -138,9 +137,7 @@ struct DEV_WindowShade : Service::WindowCovering
     if (currentSteps == targetSteps && positionState.getVal() != 0)
     {
       currentPos.setVal(targetPos.getVal()); // Update current position in HomeKit
-      Serial.print("Free Heap Memory 133: ");
-      Serial.println(ESP.getFreeHeap());
-      positionState.setVal(0); // Stop movement
+      positionState.setVal(0);               // Stop movement
       LOG1("Motor Stopped at Position=%d\n", currentPos.getVal());
     }
   }
