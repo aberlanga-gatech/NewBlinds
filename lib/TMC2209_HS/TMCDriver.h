@@ -83,9 +83,6 @@ struct Stepper_TMC : StepperControl
         case EIGHTH_STEP:
             driver.microsteps(8);
             break;
-        case SIXTEENTH_STEP:
-            driver.microsteps(16);
-            break;
         default:
             ESP_LOGE(STEPPER_TAG, "Unknown StepType=%d", mode);
         }
