@@ -7,7 +7,7 @@
 #define HOSTNAME "smart-blinds"
 
 // Total revs to open/close blinds (experimentally determined)
-#define TOTAL_ROTATIONS 50
+#define TOTAL_ROTATIONS 1
 
 // Speed to open/close blinds
 // delay between steps in ms
@@ -15,4 +15,4 @@
 #define STEPS_DELAY_SLOW 1000
 
 // max time to open/close in seconds
-#define MAX_SPIN_TIME 180
+#define MAX_SPIN_TIME 30
