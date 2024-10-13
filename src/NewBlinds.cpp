@@ -3,7 +3,6 @@
 #include <TMCStepper.h>
 #include "BlindsConfig.h"
 #include "HomekitConfig.h"
-#include "TMCDriver.h"
 
 ////////////////////////////////////
 // Define Motor Pins and TMC2209 Settings
