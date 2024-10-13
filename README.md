@@ -1,5 +1,3 @@
-This is my first fully-fledged integrated product design solo project that I will see to the end.
-
 # High-Level Overview:
 
 ## Goals:
