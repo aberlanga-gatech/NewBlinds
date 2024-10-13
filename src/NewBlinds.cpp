@@ -17,7 +17,7 @@
 // Motor Parameters
 #define STEPS_PER_REV 200 // Number of steps per revolution
 #define MOTOR_CURRENT 600 // Motor current in milliamps
-#define MICROSTEPS 8      // Microsteps per step
+#define MICROSTEPS 2      // Microsteps per step
 #define TOTAL_STEPS (STEPS_PER_REV * TOTAL_ROTATIONS)
 
 // Create TMC2209Stepper Instance

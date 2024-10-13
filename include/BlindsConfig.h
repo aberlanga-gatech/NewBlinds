@@ -7,7 +7,7 @@
 #define HOSTNAME "smart-blinds"
 
 // Total revs to open/close blinds (experimentally determined)
-#define TOTAL_ROTATIONS 50
+#define TOTAL_ROTATIONS 1
 
 // Speed to open/close blinds
 // delay between steps in ms
